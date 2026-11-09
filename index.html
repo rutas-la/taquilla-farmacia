@@ -101,7 +101,8 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
 .tt .v{font-family:var(--f-display);font-size:1.35rem;font-weight:700}
 .tt .d{font-size:.86rem;font-weight:600}
 .tt .d.up{color:var(--accent)}.tt .d.down{color:var(--warn)}.tt .d.flat{color:var(--muted)}
-.trendtxt{margin:0;max-width:75ch}
+.trendtxt{margin:0;max-width:75ch;text-align:justify;hyphens:auto}
+.empty p,.steps li,.foot li,.printhead p{text-align:justify;hyphens:auto}
 .chart .b3{fill:var(--bar2)}
 .printhead{display:none}
 @media print{
@@ -204,6 +205,12 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
     <span class="note">Porcentaje de renglones de medicamentos con receta electrónica, por mes</span>
     <div class="chart" id="chart4"></div>
     <div class="tbl" id="rxTop"></div>
+  </section>
+
+  <section class="card" id="discCard">
+    <div class="hd"><h2>Medicamentos que dejaron de entregarse</h2><span id="discPer"></span></div>
+    <p class="trendtxt" id="discTxt"></p>
+    <div class="tbl" id="disc"></div>
   </section>
 
   <section class="card">
@@ -401,7 +408,7 @@ function render(){
   const tu={};for(const r of M.ul){if(r[0]<f||r[0]>t)continue;tu[r[1]]=(tu[r[1]]||0)+r[2]}
   const us=Object.entries(tu).sort((a,b)=>b[1]-a[1]);
   $('users').innerHTML='<table><thead><tr><th>Usuario</th><th>Atenciones</th><th>%</th></tr></thead><tbody>'+us.map(([u,n])=>'<tr><td class="wr">'+esc(capName(M.users[u]))+'</td><td class="num">'+fmt(n)+'</td><td class="num">'+fmt(at?n/at*100:0,0)+'%</td></tr>').join('')+'</tbody></table>';
-  renderDow(dl);renderTrend(f,t,dl);renderRx(f,t,dl);
+  renderDow(dl);renderTrend(f,t,dl);renderRx(f,t,dl);renderDisc(f,t,dl);
   const e=M.exc;$('excl').innerHTML='Quedaron afuera del archivo: <b>'+fmt(e.anulados)+'</b> renglones anulados, <b>'+fmt(e.pendientes)+'</b> pendientes'+(e.sin_paciente?', <b>'+fmt(e.sin_paciente)+'</b> sin paciente':'')+(e.cant_cero?', <b>'+fmt(e.cant_cero)+'</b> con cantidad cero o negativa':'')+'.';
 }
 
@@ -429,7 +436,7 @@ function exportPDF(){
   const best=dw.length?dw.reduce((a,b)=>b.pd>a.pd?b:a):null;
   const ms=monthRows(f,t,dl);
   const hoy=new Date();const gen=String(hoy.getDate()).padStart(2,'0')+'/'+String(hoy.getMonth()+1).padStart(2,'0')+'/'+hoy.getFullYear();
-  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+(window.__trend?' '+trendText(window.__trend):'')+(window.__rx?' '+rxText(window.__rx):'')+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
+  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+(window.__trend?' '+trendText(window.__trend):'')+(window.__rx?' '+rxText(window.__rx):'')+(window.__disc?' '+discText(window.__disc):'')+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
   const prevTitle=document.title;document.title='Informe taquilla '+(M.efector||'')+' '+f+' a '+t;
   setTimeout(()=>{window.print();document.title=prevTitle},50);
 }
@@ -446,6 +453,8 @@ function exportXLS(){
   add('Por día',[['Fecha','Día','Atenciones','Unid. medicamentos','Unid. descartables']].concat(dl.map(d=>{const v=M.days[d];return [dmy(d),DW[dow(d)],v[0],r2(v[1]),r2(v[2])]})),[12,6,12,18,18]);
   add('Día de la semana',[['Día','Días con atención','Pacientes por día','Unid. medicamentos por día','Horas de atención','Pacientes por hora']].concat(dowRows(dl).map(r=>[r.dia,r.dias,r2(r.pd),r2(r.md),r.hh==null?'':r.hh,r.ph==null?'':r2(r.ph)])),[12,16,16,24,16,16]);
   add('Medicamentos',[['Medicamento','Atenciones','Unidades']].concat(topRows(f,t,100).map(r=>[r.med,r.n,r2(r.q)])),[50,12,12]);
+  const dc=discCalc(f,t,dl);
+  add('Discontinuados',[['Medicamentos entregados en 3 meses o más y sin entregas en los últimos 30 días del período'],[],['Medicamento','Última entrega','Días sin entregar','Atenciones por mes cuando se entregaba','Meses con entrega']].concat(dc.map(r=>[r.med,dmy(r.last),r.gap,r2(r.pm),r.ms])),[50,14,16,34,16]);
   const rx=rxCalc(f,t,dl);
   if(rx)add('Tipo de receta',[['Medicamentos por tipo de receta (columna Ind. interna: SI = electrónica, NO = papel)'],[],['Indicador','Valor'],['Renglones con receta electrónica',rx.si],['Renglones con receta en papel',rx.no],['% renglones con receta electrónica',r2(rx.pct)],['% unidades con receta electrónica',r2(rx.pu)],['Atenciones solo con receta electrónica',rx.as],['Atenciones solo con receta en papel',rx.an],['Atenciones con ambas',rx.ab],[],['Mes','Renglones electrónica','Renglones papel','% electrónica']].concat(rx.months.map(m=>[m.lab,m.si,m.no,r2(m.pct)])).concat([[],['Medicamento (receta en papel)','Renglones']]).concat(rx.topNo.map(x=>[x.med,x.n])),[46,20,16,14]);
   add('Dispensadores',[['Usuario','Atenciones']].concat(userRows(f,t).map(r=>[r.u,r.n])),[36,12]);
@@ -514,6 +523,26 @@ function renderRx(f,t,dl){
   $('rxTxt').textContent=rxText(r);
   if(r.months.length>=2)drawChart(r.months.map(m=>Object.assign({},m,{at:m.si+m.no})),false,'pct','chart4','% de renglones con receta electrónica','b3');else $('chart4').innerHTML='';
   $('rxTop').innerHTML=r.topNo.length?'<table><thead><tr><th>Medicamentos más dispensados con receta en papel</th><th>Renglones en papel</th></tr></thead><tbody>'+r.topNo.map(x=>'<tr><td class="wr">'+esc(x.med)+'</td><td class="num">'+fmt(x.n)+'</td></tr>').join('')+'</tbody></table>':'';
+}
+function discCalc(f,t,dl){
+  if(!dl.length)return [];const end=dl[dl.length-1];const endT=new Date(end+'T12:00:00');const g={};
+  const key=gi=>{const nm=M.gens[gi];const w=(nm.match(/[A-ZÑ]+/)||[''])[0].slice(0,6);const c=(nm.match(/\d+(?:[.,]\d+)?\s*(?:MG|MCG|G|ML|UI|%)/g)||[]).map(x=>x.replace(/\s+/g,'')).join('+');return w+'|'+c};
+  for(const r of M.gl){if(r[0]<f||r[0]>t||r[4])continue;const k=key(r[1]);const o=g[k]||(g[k]={last:'',m:{},n:0,names:{}});if(r[0]>o.last)o.last=r[0];const ym=r[0].slice(0,7);o.m[ym]=(o.m[ym]||0)+r[3];o.n+=r[3];o.names[r[1]]=(o.names[r[1]]||0)+r[3]}
+  const out=[];for(const k in g){const o=g[k];const ms=Object.keys(o.m).length;const gap=Math.round((endT-new Date(o.last+'T12:00:00'))/864e5);const pm=o.n/ms;
+    const top=Object.entries(o.names).sort((a,b)=>b[1]-a[1])[0][0];
+    if(ms>=3&&gap>30&&pm>=5)out.push({med:cap(M.gens[top]),last:o.last,gap,pm,ms,tot:o.n})}
+  return out.sort((a,b)=>b.pm-a.pm);
+}
+function discText(L){
+  if(!L.length)return 'No hay medicamentos de entrega regular que hayan dejado de entregarse en el período.';
+  const tot=Math.round(L.reduce((x,r)=>x+r.pm,0));
+  return L.length+' medicamento'+(L.length>1?'s':'')+' que se entregaba'+(L.length>1?'n':'')+' con regularidad no se entrega'+(L.length>1?'n':'')+' hace más de 30 días. Cuando estaban disponibles sumaban unas '+fmt(tot)+' atenciones por mes. Se agrupan las marcas de la misma droga y concentración, así que un cambio de marca no aparece como faltante. Puede deberse a falta de stock o a un cambio de código en el sistema.';
+}
+function renderDisc(f,t,dl){
+  const L=discCalc(f,t,dl);window.__disc=L;
+  $('discTxt').textContent=discText(L);
+  $('discPer').textContent='entregados en 3 meses o más y sin entregas en los últimos 30 días del período';
+  $('disc').innerHTML=L.length?'<table><thead><tr><th>Medicamento</th><th>Última entrega</th><th>Días sin entregar</th><th>Atenciones por mes cuando se entregaba</th><th>Meses con entrega</th></tr></thead><tbody>'+L.slice(0,20).map(r=>'<tr><td class="wr">'+esc(r.med)+'</td><td class="num">'+dmy(r.last)+'</td><td class="num">'+fmt(r.gap)+'</td><td class="num">'+fmt(r.pm,1)+'</td><td class="num">'+r.ms+'</td></tr>').join('')+'</tbody></table>':'';
 }
 function renderDow(dl){
   const hrs=getHours();const g={};
