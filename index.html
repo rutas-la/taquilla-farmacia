@@ -88,8 +88,9 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
 .foot ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
 .foot b{color:var(--ink);font-weight:600}
 .drop{outline:2px dashed var(--accent);outline-offset:6px}
-.empty{gap:14px;max-width:820px}
+.empty{gap:14px;max-width:none}
 .empty p{margin:0;max-width:68ch}
+.shot{width:100%;height:auto;border:1px solid var(--line);border-radius:6px}
 .steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-width:68ch}
 .hours{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end}
 .hours .field input{width:84px;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
@@ -117,11 +118,13 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
     <h2>Cargá el reporte de remitos de tu farmacia</h2>
     <p>Esta página cuenta los pacientes atendidos y las unidades entregadas en la taquilla a partir del Excel que exporta SIGEHOS. Arrastrá el archivo acá o tocá <b>Cargar Excel de remitos</b>.</p>
     <ol class="steps">
-      <li>En SIGEHOS, entrá al módulo <b>Medicación e insumos</b> y abrí el reporte de movimientos de fármacos e insumos (el archivo se descarga como <b>rptEstRemitos.xlsx</b>).</li>
-      <li>Elegí el período: un mes, varios meses o el año completo.</li>
-      <li>Exportalo <b>sin agrupar</b>. El reporte agrupado por producto (rptEstRemitosAgrupado) no sirve, porque no trae el paciente.</li>
-      <li>Cargá el Excel en esta página. Se procesa en tu navegador: no se sube ni se guarda en ningún lado.</li>
+      <li>En SIGEHOS, entrá al menú <b>Farmacia → Remitos</b>. Se abre el <b>Listado de Remitos</b>.</li>
+      <li>Elegí las fechas <b>Desde</b> y <b>Hasta</b> del período que querés analizar: un mes, varios meses o el año completo. El resto de los filtros dejalo en <b>Todos</b>.</li>
+      <li>Tocá <b>Reportes → Listado de movimientos</b>. Se descarga un Excel llamado <b>rptEstRemitos.xlsx</b>.</li>
+      <li>Cargá ese Excel en esta página. Las opciones "Listado de dispensas agrupadas" no sirven, porque no traen el paciente.</li>
     </ol>
+    <img class="shot" src="captura-sigehos.png" alt="Pantalla Listado de Remitos de SIGEHOS: menú Farmacia, opción Remitos, y el botón Reportes con la opción Listado de movimientos" width="1336" height="194">
+    <p class="note">El Excel se procesa en tu navegador: no se sube ni se guarda en ningún lado.</p>
   </section>
 
   <div id="results" hidden>
@@ -177,7 +180,7 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
   <section class="foot">
     <span class="eyebrow">Cómo se cuenta</span>
     <ul>
-      <li>Se usa el reporte <b>rptEstRemitos</b> de SIGEHOS (Medicación e insumos, sin agrupar). El agrupado por producto no sirve porque no trae paciente.</li>
+      <li>Se usa el reporte <b>Listado de movimientos</b> de SIGEHOS (Farmacia → Remitos → Reportes), que se descarga como rptEstRemitos.xlsx. Los listados de dispensas agrupadas no sirven porque no traen paciente.</li>
       <li>Las horas de atención que cargues quedan guardadas solo en este navegador.</li>
       <li>Cuenta solo remitos de tipo <b>EGRESO</b>, en estado <b>CONFIRMADO</b>, con paciente y cantidad mayor a cero. Ingresos, ajustes y transferencias no cuentan.</li>
       <li>Los remitos devueltos quedan <b>ANULADOS</b> en el sistema, así que no suman pacientes ni unidades.</li>

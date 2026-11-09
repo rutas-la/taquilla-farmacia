@@ -4,11 +4,15 @@ Página para contar los pacientes atendidos y las unidades entregadas en la taqu
 
 ## Cómo se usa
 
-1. En SIGEHOS, exportá el reporte de movimientos de fármacos e insumos **sin agrupar** (se descarga como `rptEstRemitos.xlsx`).
-2. Abrí la página y cargá el Excel.
-3. Elegí el período y, si querés pacientes por hora, cargá el horario de atención de cada día.
+1. En SIGEHOS, entrá a **Farmacia → Remitos** (Listado de Remitos).
+2. Elegí las fechas **Desde** y **Hasta** y dejá el resto de los filtros en Todos.
+3. Tocá **Reportes → Listado de movimientos**. Se descarga `rptEstRemitos.xlsx`.
+4. Abrí la página y cargá el Excel. Los listados de dispensas agrupadas no sirven porque no traen el paciente.
+5. Elegí el período y, si querés pacientes por hora, cargá el horario de atención de cada día.
 
 El Excel se procesa en el navegador: no se sube a ningún servidor ni se guarda. No hace falta instalar nada.
+
+![Listado de Remitos en SIGEHOS](captura-sigehos.png)
 
 ## Qué muestra
 
