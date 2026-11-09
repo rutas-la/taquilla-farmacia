@@ -21,6 +21,8 @@ El Excel se procesa en el navegador: no se sube a ningún servidor ni se guarda.
 - Detalle por mes y por día, con copia de la tabla para Excel.
 - Atención por día de la semana y pacientes por hora.
 - Medicamentos más entregados y atenciones por dispensador.
+- **Exportar informe (PDF):** arma un informe con resumen en texto, cifras, gráficos y tablas, listo para enviar al jefe de farmacia. En la ventana de impresión, elegí "Guardar como PDF".
+- **Descargar Excel:** un archivo con hojas de Resumen, Por mes, Por día, Día de la semana, Medicamentos y Dispensadores.
 
 ## Criterios de conteo
 

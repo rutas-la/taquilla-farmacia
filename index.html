@@ -95,6 +95,32 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
 .hours{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end}
 .hours .field input{width:84px;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .toast{font-size:.85rem;color:var(--accent);font-weight:600}
+.printhead{display:none}
+@media print{
+  :root{--bg:#ffffff;--panel:#ffffff;--ink:#111;--muted:#444;--line:#ccc;color-scheme:light}
+  body{background:#fff;font-size:11pt}
+  .wrap{max-width:none;padding:0;gap:14px}
+  header .actions,.filters,.notice,#empty,.tact,.note,.hours,.toast,#expAll{display:none!important}
+  header{border-bottom:2px solid #111}
+  .printhead{display:block;font-size:10pt;color:#333}
+  .printhead p{margin:4px 0}
+  .card,.kpis,.grid2>section{break-inside:avoid;page-break-inside:avoid;box-shadow:none}
+  .grid2{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi{padding:10px 12px}
+  .kpi .v{font-size:1.5rem}.kpi.main .v{font-size:1.7rem}
+  .tbl{overflow:visible}
+  table{font-size:8.5pt;table-layout:auto}
+  th,td{white-space:normal;padding:4px 6px}
+  th{font-size:7.5pt}
+  td.wrap{min-width:0}
+  tr.drow td:first-child{white-space:nowrap}
+  .chart{overflow:visible}
+  .chart svg{min-width:0!important;width:100%}
+  .tg .car{display:none}
+  a{color:inherit;text-decoration:none}
+  @page{size:A4;margin:14mm}
+}
 @media (prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s,border-color .15s}}
 </style></head><body>
 
@@ -108,9 +134,12 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
     <div class="actions">
       <label class="btn" for="file">Cargar reporte: Listado de movimientos</label>
       <input type="file" id="file" accept=".xlsx,.xls">
+      <button class="btn" id="pdf" type="button" hidden>Exportar informe (PDF)</button>
+      <button class="btn ghost" id="xls" type="button" hidden>Descargar Excel</button>
       <button class="btn ghost" id="copy" type="button" hidden>Copiar resumen</button>
     </div>
   </header>
+  <section class="printhead" id="printHead" aria-hidden="true"></section>
 
   <div class="notice" id="notice" hidden></div>
 
@@ -355,6 +384,44 @@ function buildHours(){
   $('hours').innerHTML=[1,2,3,4,5].map(d=>'<div class="field"><label for="h'+d+'">'+DOWN[d]+' (horas)</label><input type="number" id="h'+d+'" min="0" max="24" step="0.5" inputmode="decimal" value="'+(h[d]!=null?h[d]:'')+'" placeholder="—"></div>').join('');
   [1,2,3,4,5].forEach(d=>$('h'+d).addEventListener('input',()=>{const o=getHours();const v=parseFloat($('h'+d).value.replace(',','.'));if(v>0)o[d]=v;else delete o[d];try{localStorage.setItem(HKEY,JSON.stringify(o))}catch(e){}if(M)render()}));
 }
+function dowRows(dl){
+  const hrs=getHours();const g={};
+  for(const d of dl){const w=dow(d);const o=g[w]||(g[w]={n:0,at:0,med:0});o.n++;o.at+=M.days[d][0];o.med+=M.days[d][1]}
+  return [1,2,3,4,5,6,0].filter(w=>g[w]).map(w=>{const o=g[w],hh=hrs[w]||null,pd=o.at/o.n;return {dia:DOWN[w],dias:o.n,pd,md:o.med/o.n,hh,ph:hh?pd/hh:null}});
+}
+function curRange(){let f=$('from').value,t=$('to').value;if(f>t){[f,t]=[t,f]}return [f,t,Object.keys(M.days).filter(d=>d>=f&&d<=t).sort()]}
+function topRows(f,t,n){const tg={};for(const r of M.gl){if(r[0]<f||r[0]>t||r[4])continue;const o=tg[r[1]]||(tg[r[1]]={n:0,q:0});o.n+=r[3];o.q+=r[2]}
+  return Object.entries(tg).sort((a,b)=>b[1].n-a[1].n||b[1].q-a[1].q).slice(0,n).map(([g,o])=>({med:cap(M.gens[g]),n:o.n,q:o.q}))}
+function userRows(f,t){const tu={};for(const r of M.ul){if(r[0]<f||r[0]>t)continue;tu[r[1]]=(tu[r[1]]||0)+r[2]}return Object.entries(tu).sort((a,b)=>b[1]-a[1]).map(([u,n])=>({u:capName(M.users[u]),n}))}
+function monthRows(f,t,dl){const mp={};for(const d of dl){const ym=d.slice(0,7);const g=mp[ym]||(mp[ym]={ym,at:0,med:0,des:0,dias:0,ds:[]});const v=M.days[d];g.at+=v[0];g.med+=v[1];g.des+=v[2];g.dias++;g.ds.push(d)}
+  return Object.keys(mp).sort().map(ym=>{const g=mp[ym];const y=+ym.slice(0,4),m=+ym.slice(5,7);const mf=ym+'-01'<f?f:ym+'-01';const lastD=ym+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0');g.uq=uniqFor(mf,lastD>t?t:lastD,g.ds);g.lab=cap1(MESL[m-1])+' '+y;return g})}
+function exportPDF(){
+  const s=window.__sum;const [f,t,dl]=curRange();const top=topRows(f,t,5);const dw=dowRows(dl);
+  const best=dw.length?dw.reduce((a,b)=>b.pd>a.pd?b:a):null;
+  const ms=monthRows(f,t,dl);
+  let trend='';const full=ms.filter(g=>g.dias>=10);if(full.length>=3){const a=full[0],b=full[full.length-1];trend=' Entre '+a.lab.toLowerCase()+' y '+b.lab.toLowerCase()+' las unidades de medicamentos por atención pasaron de '+fmt(a.med/a.at,1)+' a '+fmt(b.med/b.at,1)+'.'}
+  const hoy=new Date();const gen=String(hoy.getDate()).padStart(2,'0')+'/'+String(hoy.getMonth()+1).padStart(2,'0')+'/'+hoy.getFullYear();
+  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+trend+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
+  const prevTitle=document.title;document.title='Informe taquilla '+(M.efector||'')+' '+f+' a '+t;
+  setTimeout(()=>{window.print();document.title=prevTitle},50);
+}
+function exportXLS(){
+  if(typeof XLSX==='undefined'||!XLSX.writeFile){flash('No se pudo generar el Excel');return}
+  const s=window.__sum;const [f,t,dl]=curRange();const r2=x=>Math.round(x*100)/100;
+  const wb=XLSX.utils.book_new();
+  const add=(name,aoa,w)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);if(w)ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
+  add('Resumen',[['Informe de atención en taquilla'],['Farmacia',M.efector||''],['Período',s.per],['Fuente','SIGEHOS · Farmacia > Remitos > Reportes > Listado de movimientos'],[],
+    ['Indicador','Valor'],['Atenciones con entrega efectiva',s.at],['Pacientes distintos',s.uq==null?'':s.uq],['Unidades de medicamentos',r2(s.med)],['Unidades de descartables',r2(s.des)],['Días con atención',s.dias],['Pacientes por día (promedio)',s.dias?r2(s.at/s.dias):''],['Unidades de medicamentos por atención',s.at?r2(s.med/s.at):''],[],
+    ['Criterio: egresos confirmados con paciente y cantidad mayor a cero. Una atención = un paciente que recibió al menos un producto en el día.']],[40,60]);
+  add('Por mes',[['Mes','Atenciones','Pacientes distintos','Días con atención','Pacientes por día','Unid. medicamentos','Unid. descartables','Unid. medicamentos por atención']].concat(monthRows(f,t,dl).map(g=>[g.lab,g.at,g.uq==null?'':g.uq,g.dias,r2(g.at/g.dias),r2(g.med),r2(g.des),g.at?r2(g.med/g.at):''])),[16,12,18,16,16,18,18,26]);
+  const DW=['dom','lun','mar','mié','jue','vie','sáb'];
+  add('Por día',[['Fecha','Día','Atenciones','Unid. medicamentos','Unid. descartables']].concat(dl.map(d=>{const v=M.days[d];return [dmy(d),DW[dow(d)],v[0],r2(v[1]),r2(v[2])]})),[12,6,12,18,18]);
+  add('Día de la semana',[['Día','Días con atención','Pacientes por día','Unid. medicamentos por día','Horas de atención','Pacientes por hora']].concat(dowRows(dl).map(r=>[r.dia,r.dias,r2(r.pd),r2(r.md),r.hh==null?'':r.hh,r.ph==null?'':r2(r.ph)])),[12,16,16,24,16,16]);
+  add('Medicamentos',[['Medicamento','Atenciones','Unidades']].concat(topRows(f,t,100).map(r=>[r.med,r.n,r2(r.q)])),[50,12,12]);
+  add('Dispensadores',[['Usuario','Atenciones']].concat(userRows(f,t).map(r=>[r.u,r.n])),[36,12]);
+  XLSX.writeFile(wb,'Informe taquilla '+(M.efector||'farmacia')+' '+f+' a '+t+'.xlsx');
+  flash('Excel descargado');
+}
 function renderDow(dl){
   const hrs=getHours();const g={};
   for(const d of dl){const w=dow(d);const o=g[w]||(g[w]={n:0,at:0,med:0});o.n++;o.at+=M.days[d][0];o.med+=M.days[d][1]}
@@ -393,7 +460,7 @@ function load(file){
       M=fromRows(rows,file.name);
       $('eyebrow').textContent='Farmacia · '+(M.efector||'SIGEHOS')+' · SIGEHOS';
       document.title='Atención en taquilla · '+(M.efector||'Farmacia');
-      $('empty').hidden=true;$('results').hidden=false;$('copy').hidden=false;$('excl').hidden=false;
+      $('empty').hidden=true;$('results').hidden=false;['copy','pdf','xls'].forEach(id=>$(id).hidden=false);$('excl').hidden=false;
       setQuick('all');flash('Excel cargado');
     }catch(err){n.textContent=err.message;n.hidden=false}
   };
@@ -411,6 +478,8 @@ $('expAll').addEventListener('click',()=>{const ms=window.__months||[];if(ms.len
 $('copyT').addEventListener('click',()=>{const txt=window.__tsv||'';try{navigator.clipboard.writeText(txt).then(()=>flash('Tabla copiada: pegala en Excel'),()=>fallback(txt))}catch(e){fallback(txt)}});
 $('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)setQuick(b.dataset.q)});
 ['from','to'].forEach(id=>$(id).addEventListener('change',()=>{quick='';render()}));
+$('pdf').addEventListener('click',exportPDF);
+$('xls').addEventListener('click',exportXLS);
 $('copy').addEventListener('click',()=>{
   const s=window.__sum;const txt='Farmacia '+((M&&M.efector)||'')+' – Atención en taquilla\nPeríodo: '+s.per+'\nPacientes atendidos (atenciones con entrega): '+fmt(s.at)+(s.uq!=null?'\nPacientes distintos: '+fmt(s.uq):'')+'\nUnidades de medicamentos entregadas: '+fmt(s.med)+'\nUnidades de descartables entregadas: '+fmt(s.des)+'\nDías con atención: '+s.dias+' (promedio '+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día)';
   const done=()=>flash('Resumen copiado');
