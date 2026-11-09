@@ -19,11 +19,12 @@ El Excel se procesa en el navegador: no se sube a ningún servidor ni se guarda.
 - Pacientes atendidos (atenciones con entrega efectiva) y pacientes distintos.
 - Unidades de medicamentos y de descartables entregadas.
 - Entregas en relación con los pacientes: compara el inicio y el final del período (pacientes por día, unidades por día y unidades por atención) y explica si la variación de las entregas se debe a más o menos pacientes o a lo que recibe cada uno.
+- Receta electrónica y receta en papel (columna Ind. interna: SI = electrónica, NO = papel): porcentaje de renglones de medicamentos, atenciones por tipo de receta, evolución mensual y medicamentos más dispensados con receta en papel.
 - Detalle por mes y por día, con copia de la tabla para Excel.
 - Atención por día de la semana y pacientes por hora.
 - Medicamentos más entregados y atenciones por dispensador.
 - **Exportar informe (PDF):** arma un informe con resumen en texto, cifras, gráficos y tablas, listo para enviar al jefe de farmacia. En la ventana de impresión, elegí "Guardar como PDF".
-- **Descargar Excel:** un archivo con hojas de Resumen, Por mes, Por día, Día de la semana, Medicamentos y Dispensadores.
+- **Descargar Excel:** un archivo con hojas de Resumen, Por mes, Por día, Día de la semana, Medicamentos, Tipo de receta y Dispensadores.
 
 ## Criterios de conteo
 

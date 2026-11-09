@@ -79,7 +79,7 @@ table{border-collapse:collapse;width:100%;font-size:.9rem}
 th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
 th{font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;border-bottom:1.5px solid var(--ink)}
 th:first-child,td:first-child{text-align:left}
-td.wrap{white-space:normal;min-width:180px}
+td.wr{white-space:normal;min-width:180px}
 tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
 .grid2{display:grid;grid-template-columns:3fr 2fr;gap:22px;align-items:start}
 @media (max-width:760px){.grid2{grid-template-columns:1fr}}
@@ -121,7 +121,7 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
   table{font-size:8.5pt;table-layout:auto}
   th,td{white-space:normal;padding:4px 6px}
   th{font-size:7.5pt}
-  td.wrap{min-width:0}
+  td.wr{min-width:0}
   tr.drow td:first-child{white-space:nowrap}
   .chart{overflow:visible}
   .chart svg{min-width:0!important;width:100%}
@@ -197,6 +197,15 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
     <div class="chart" id="chart3"></div>
   </section>
 
+  <section class="card" id="rxCard" hidden>
+    <div class="hd"><h2>Receta electrónica y receta en papel</h2><span>solo medicamentos · columna Ind. interna (SI = electrónica, NO = papel)</span></div>
+    <div class="trend" id="rxTiles"></div>
+    <p class="trendtxt" id="rxTxt"></p>
+    <span class="note">Porcentaje de renglones de medicamentos con receta electrónica, por mes</span>
+    <div class="chart" id="chart4"></div>
+    <div class="tbl" id="rxTop"></div>
+  </section>
+
   <section class="card">
     <div class="hd"><h2 id="tblTitle">Detalle</h2><div class="tact"><button class="chip" type="button" id="expAll">Ver todos los días</button><button class="chip" type="button" id="copyT">Copiar tabla para Excel</button></div></div>
     <span class="note">Atención = paciente que recibió al menos un producto ese día. Tocá un mes para ver sus días.</span>
@@ -266,7 +275,8 @@ function fromRows(rows,name){
   for(let i=0;i<Math.min(rows.length,40);i++){const r=(rows[i]||[]).map(norm);if(r.includes('TIPO REMITO')&&r.includes('FECHA REMITO')){h=i;break;}}
   if(h<0)throw new Error('No encontré la fila de títulos (Tipo Remito, Fecha Remito…). ¿Es el reporte rptEstRemitos de SIGEHOS?');
   const H=rows[h].map(norm);const c=n=>H.indexOf(n);
-  const ix={tipo:c('TIPO REMITO'),fecha:c('FECHA REMITO'),pac:c('PACIENTE'),id:c('ID PACIENTE'),dni:c('DNI'),art:c('ARTICULO'),cant:c('CANTIDAD'),est:c('ESTADO REMITO'),ta:c('TIPO ARTICULO'),us:c('USUARIO')};
+  const ix={tipo:c('TIPO REMITO'),fecha:c('FECHA REMITO'),pac:c('PACIENTE'),id:c('ID PACIENTE'),dni:c('DNI'),art:c('ARTICULO'),cant:c('CANTIDAD'),est:c('ESTADO REMITO'),ta:c('TIPO ARTICULO'),us:c('USUARIO'),ii:c('IND. INTERNA')};
+  const rxD={},pdT={};
   if(ix.pac<0)throw new Error('Este Excel no trae la columna Paciente. Parece el reporte agrupado por producto: exportá rptEstRemitos sin agrupar.');
   for(const k of ['tipo','fecha','art','cant'])if(ix[k]<0)throw new Error('Falta la columna '+k+' en el Excel.');
   const exc={anulados:0,pendientes:0,sin_paciente:0,cant_cero:0};let total=0;
@@ -283,24 +293,27 @@ function fromRows(rows,name){
     const pid=String((ix.id>=0&&r[ix.id]!=null&&r[ix.id]!=='')?r[ix.id]:(ix.dni>=0&&r[ix.dni]?r[ix.dni]:pac)).replace(/\.0+$/,'');
     const desc=ix.ta>=0&&norm(r[ix.ta])==='DESCARTABLES';
     (dayP[d]||(dayP[d]=new Set())).add(pid);
+    const paper=ix.ii>=0&&!desc&&norm(r[ix.ii])==='NO';
+    if(ix.ii>=0&&!desc){const o=rxD[d]||(rxD[d]={si:0,no:0,su:0,nu:0});if(paper){o.no++;o.nu+=q}else{o.si++;o.su+=q}const k=pid+'|'+d;pdT[k]=(pdT[k]||0)|(paper?2:1)}
     if(desc)dayD[d]=(dayD[d]||0)+q;else dayM[d]=(dayM[d]||0)+q;
     const a=String(r[ix.art]||'');const mm=a.match(/\[\s*([^\]]+?)\s*\]/);const g=norm(mm?mm[1]:a);
     if(!(g in gi)){gi[g]=gens.length;gens.push(g)}
-    const key=d+'|'+gi[g]+'|'+(desc?1:0);const o=gk[key]||(gk[key]={q:0,p:new Set()});o.q+=q;o.p.add(pid);
+    const key=d+'|'+gi[g]+'|'+(desc?1:0);const o=gk[key]||(gk[key]={q:0,p:new Set(),pr:0,r:0});o.q+=q;o.p.add(pid);o.r++;if(paper)o.pr++;
     const u=ix.us>=0&&r[ix.us]?String(r[ix.us]).trim():'(sin usuario)';
     if(!(u in ui)){ui[u]=users.length;users.push(u)}
     const uk2=d+'|'+ui[u];(uk[uk2]||(uk[uk2]=new Set())).add(pid);
   }
   const days={};for(const d of Object.keys(dayP))days[d]=[dayP[d].size,+(dayM[d]||0).toFixed(2),+(dayD[d]||0).toFixed(2)];
   if(!Object.keys(days).length)throw new Error('No hay entregas a pacientes confirmadas en este Excel.');
-  const gl=Object.entries(gk).map(([k,o])=>{const [d,g,m]=k.split('|');return [d,+g,o.q,o.p.size,+m]});
+  const gl=Object.entries(gk).map(([k,o])=>{const [d,g,m]=k.split('|');return [d,+g,o.q,o.p.size,+m,o.pr,o.r]});
   const ul=Object.entries(uk).map(([k,s])=>{const [d,u]=k.split('|');return [d,+u,s.size]});
   for(const d in dayP)pids[d]=dayP[d];
   let efector='';
   for(let i=0;i<h&&!efector;i++)for(const c of (rows[i]||[])){if(c!=null&&String(c).trim()&&!/listado|movimientos|f[aá]rmacos/i.test(String(c))){efector=String(c).trim();break}}
   const uo=H.indexOf('UBICACION ORIGEN');
   if(!efector&&uo>=0){for(let i=h+1;i<rows.length;i++){const v=rows[i]&&rows[i][uo];if(v){efector=String(v).trim();break}}}
-  return {src:name,live:true,exc,days,uniq:null,gens,gl,users,ul,pids,total,efector};
+  const rxAt={};for(const k in pdT){const d=k.slice(k.lastIndexOf('|')+1);const o=rxAt[d]||(rxAt[d]={s:0,n:0,b:0});const v=pdT[k];if(v===1)o.s++;else if(v===2)o.n++;else o.b++}
+  return {src:name,live:true,exc,days,uniq:null,gens,gl,users,ul,pids,total,efector,hasRx:ix.ii>=0,rxD,rxAt};
 }
 
 function range(){const ds=Object.keys(M.days).sort();return [ds[0],ds[ds.length-1]]}
@@ -384,11 +397,11 @@ function render(){
   // top medicamentos
   const tg={};for(const r of M.gl){if(r[0]<f||r[0]>t||r[4])continue;const o=tg[r[1]]||(tg[r[1]]={n:0,q:0});o.n+=r[3];o.q+=r[2]}
   const top=Object.entries(tg).sort((a,b)=>b[1].n-a[1].n||b[1].q-a[1].q).slice(0,12);const mx=top.length?top[0][1].n:1;
-  $('top').innerHTML='<table><thead><tr><th>Medicamento</th><th>Atenciones</th><th>Unidades</th></tr></thead><tbody>'+top.map(([g,o])=>'<tr><td class="wrap">'+esc(cap(M.gens[g]))+'</td><td class="num"><span class="meter" style="width:'+Math.max(3,Math.round(o.n/mx*60))+'px"></span>'+fmt(o.n)+'</td><td class="num">'+fmt(o.q)+'</td></tr>').join('')+'</tbody></table>';
+  $('top').innerHTML='<table><thead><tr><th>Medicamento</th><th>Atenciones</th><th>Unidades</th></tr></thead><tbody>'+top.map(([g,o])=>'<tr><td class="wr">'+esc(cap(M.gens[g]))+'</td><td class="num"><span class="meter" style="width:'+Math.max(3,Math.round(o.n/mx*60))+'px"></span>'+fmt(o.n)+'</td><td class="num">'+fmt(o.q)+'</td></tr>').join('')+'</tbody></table>';
   const tu={};for(const r of M.ul){if(r[0]<f||r[0]>t)continue;tu[r[1]]=(tu[r[1]]||0)+r[2]}
   const us=Object.entries(tu).sort((a,b)=>b[1]-a[1]);
-  $('users').innerHTML='<table><thead><tr><th>Usuario</th><th>Atenciones</th><th>%</th></tr></thead><tbody>'+us.map(([u,n])=>'<tr><td class="wrap">'+esc(capName(M.users[u]))+'</td><td class="num">'+fmt(n)+'</td><td class="num">'+fmt(at?n/at*100:0,0)+'%</td></tr>').join('')+'</tbody></table>';
-  renderDow(dl);renderTrend(f,t,dl);
+  $('users').innerHTML='<table><thead><tr><th>Usuario</th><th>Atenciones</th><th>%</th></tr></thead><tbody>'+us.map(([u,n])=>'<tr><td class="wr">'+esc(capName(M.users[u]))+'</td><td class="num">'+fmt(n)+'</td><td class="num">'+fmt(at?n/at*100:0,0)+'%</td></tr>').join('')+'</tbody></table>';
+  renderDow(dl);renderTrend(f,t,dl);renderRx(f,t,dl);
   const e=M.exc;$('excl').innerHTML='Quedaron afuera del archivo: <b>'+fmt(e.anulados)+'</b> renglones anulados, <b>'+fmt(e.pendientes)+'</b> pendientes'+(e.sin_paciente?', <b>'+fmt(e.sin_paciente)+'</b> sin paciente':'')+(e.cant_cero?', <b>'+fmt(e.cant_cero)+'</b> con cantidad cero o negativa':'')+'.';
 }
 
@@ -416,7 +429,7 @@ function exportPDF(){
   const best=dw.length?dw.reduce((a,b)=>b.pd>a.pd?b:a):null;
   const ms=monthRows(f,t,dl);
   const hoy=new Date();const gen=String(hoy.getDate()).padStart(2,'0')+'/'+String(hoy.getMonth()+1).padStart(2,'0')+'/'+hoy.getFullYear();
-  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+(window.__trend?' '+trendText(window.__trend):'')+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
+  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+(window.__trend?' '+trendText(window.__trend):'')+(window.__rx?' '+rxText(window.__rx):'')+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
   const prevTitle=document.title;document.title='Informe taquilla '+(M.efector||'')+' '+f+' a '+t;
   setTimeout(()=>{window.print();document.title=prevTitle},50);
 }
@@ -433,6 +446,8 @@ function exportXLS(){
   add('Por día',[['Fecha','Día','Atenciones','Unid. medicamentos','Unid. descartables']].concat(dl.map(d=>{const v=M.days[d];return [dmy(d),DW[dow(d)],v[0],r2(v[1]),r2(v[2])]})),[12,6,12,18,18]);
   add('Día de la semana',[['Día','Días con atención','Pacientes por día','Unid. medicamentos por día','Horas de atención','Pacientes por hora']].concat(dowRows(dl).map(r=>[r.dia,r.dias,r2(r.pd),r2(r.md),r.hh==null?'':r.hh,r.ph==null?'':r2(r.ph)])),[12,16,16,24,16,16]);
   add('Medicamentos',[['Medicamento','Atenciones','Unidades']].concat(topRows(f,t,100).map(r=>[r.med,r.n,r2(r.q)])),[50,12,12]);
+  const rx=rxCalc(f,t,dl);
+  if(rx)add('Tipo de receta',[['Medicamentos por tipo de receta (columna Ind. interna: SI = electrónica, NO = papel)'],[],['Indicador','Valor'],['Renglones con receta electrónica',rx.si],['Renglones con receta en papel',rx.no],['% renglones con receta electrónica',r2(rx.pct)],['% unidades con receta electrónica',r2(rx.pu)],['Atenciones solo con receta electrónica',rx.as],['Atenciones solo con receta en papel',rx.an],['Atenciones con ambas',rx.ab],[],['Mes','Renglones electrónica','Renglones papel','% electrónica']].concat(rx.months.map(m=>[m.lab,m.si,m.no,r2(m.pct)])).concat([[],['Medicamento (receta en papel)','Renglones']]).concat(rx.topNo.map(x=>[x.med,x.n])),[46,20,16,14]);
   add('Dispensadores',[['Usuario','Atenciones']].concat(userRows(f,t).map(r=>[r.u,r.n])),[36,12]);
   XLSX.writeFile(wb,'Informe taquilla '+(M.efector||'farmacia')+' '+f+' a '+t+'.xlsx');
   flash('Excel descargado');
@@ -474,6 +489,31 @@ function renderTrend(f,t,dl){
   else{$('trendPer').textContent='';$('trendTiles').innerHTML='';}
   const ms=monthRows(f,t,dl).map(g=>({k:g.ym,lab:g.lab,sh:MES[+g.ym.slice(5,7)-1]+g.ym.slice(2,4),at:g.at,upa:g.at?g.med/g.at:0}));
   if(ms.length>=2)drawChart(ms,false,'upa','chart3','unidades por atención','b3');else $('chart3').innerHTML='';
+}
+function rxCalc(f,t,dl){
+  if(!M.hasRx)return null;let si=0,no=0,su=0,nu=0,as=0,an=0,ab=0;const mp={};
+  for(const d of dl){const o=M.rxD[d];if(o){si+=o.si;no+=o.no;su+=o.su;nu+=o.nu;const ym=d.slice(0,7);const g=mp[ym]||(mp[ym]={si:0,no:0,dias:0});g.si+=o.si;g.no+=o.no;g.dias++}const a=M.rxAt[d];if(a){as+=a.s;an+=a.n;ab+=a.b}}
+  const tot=si+no,at=as+an+ab;if(!tot)return null;
+  const months=Object.keys(mp).sort().map(ym=>({k:ym,ym,lab:cap1(MESL[+ym.slice(5,7)-1])+' '+ym.slice(0,4),sh:MES[+ym.slice(5,7)-1]+ym.slice(2,4),pct:mp[ym].si/(mp[ym].si+mp[ym].no)*100,si:mp[ym].si,no:mp[ym].no,dias:mp[ym].dias}));
+  const tg={};for(const r of M.gl){if(r[0]<f||r[0]>t||r[4]||!r[5])continue;tg[r[1]]=(tg[r[1]]||0)+r[5]}
+  const topNo=Object.entries(tg).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([g,n])=>({med:cap(M.gens[g]),n}));
+  return {si,no,tot,pct:si/tot*100,pu:su/(su+nu)*100,as,an,ab,at,months,topNo};
+}
+function rxText(r){
+  if(!r)return '';
+  let t='El '+fmt(r.pct,1)+' % de los renglones de medicamentos se dispensó con receta electrónica ('+fmt(r.pu,1)+' % de las unidades). ';
+  t+='De las atenciones con medicamentos, el '+fmt(r.as/r.at*100,0)+' % fue solo con receta electrónica, el '+fmt(r.an/r.at*100,0)+' % solo con receta en papel y el '+fmt(r.ab/r.at*100,0)+' % con ambas.';
+  const full=r.months.filter(m=>m.dias>=10);
+  if(full.length>=2){const a=full[0],b=full[full.length-1];const dif=b.pct-a.pct;t+=' Entre '+a.lab.toLowerCase()+' y '+b.lab.toLowerCase()+' la receta electrónica pasó del '+fmt(a.pct,1)+' % al '+fmt(b.pct,1)+' % de los renglones'+(Math.abs(dif)<2?', sin cambios relevantes.':dif>0?'.':', es decir, retrocedió.')}
+  return t;
+}
+function renderRx(f,t,dl){
+  const r=rxCalc(f,t,dl);window.__rx=r;$('rxCard').hidden=!r;if(!r)return;
+  const tl=(l,v,sub)=>'<div class="tt"><span class="l">'+l+'</span><span class="v num">'+v+'</span><span class="d flat">'+sub+'</span></div>';
+  $('rxTiles').innerHTML=tl('Renglones con receta electrónica',fmt(r.pct,1)+' %',fmt(r.si)+' de '+fmt(r.tot)+' renglones')+tl('Atenciones solo con receta en papel',fmt(r.an/r.at*100,1)+' %',fmt(r.an)+' de '+fmt(r.at)+' atenciones')+tl('Atenciones con ambas',fmt(r.ab/r.at*100,1)+' %',fmt(r.ab)+' atenciones');
+  $('rxTxt').textContent=rxText(r);
+  if(r.months.length>=2)drawChart(r.months.map(m=>Object.assign({},m,{at:m.si+m.no})),false,'pct','chart4','% de renglones con receta electrónica','b3');else $('chart4').innerHTML='';
+  $('rxTop').innerHTML=r.topNo.length?'<table><thead><tr><th>Medicamentos más dispensados con receta en papel</th><th>Renglones en papel</th></tr></thead><tbody>'+r.topNo.map(x=>'<tr><td class="wr">'+esc(x.med)+'</td><td class="num">'+fmt(x.n)+'</td></tr>').join('')+'</tbody></table>':'';
 }
 function renderDow(dl){
   const hrs=getHours();const g={};
