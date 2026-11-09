@@ -95,6 +95,14 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
 .hours{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end}
 .hours .field input{width:84px;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .toast{font-size:.85rem;color:var(--accent);font-weight:600}
+.trend{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tt{border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tt .l{font-size:.82rem;font-weight:600}
+.tt .v{font-family:var(--f-display);font-size:1.35rem;font-weight:700}
+.tt .d{font-size:.86rem;font-weight:600}
+.tt .d.up{color:var(--accent)}.tt .d.down{color:var(--warn)}.tt .d.flat{color:var(--muted)}
+.trendtxt{margin:0;max-width:75ch}
+.chart .b3{fill:var(--bar2)}
 .printhead{display:none}
 @media print{
   :root{--bg:#ffffff;--panel:#ffffff;--ink:#111;--muted:#444;--line:#ccc;color-scheme:light}
@@ -179,6 +187,14 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
   <section class="card">
     <div class="hd"><h2 id="chart2Title">Unidades de medicamentos entregadas</h2><span id="chart2Note"></span></div>
     <div class="chart" id="chart2"></div>
+  </section>
+
+  <section class="card" id="trendCard">
+    <div class="hd"><h2>Entregas en relación con los pacientes</h2><span id="trendPer"></span></div>
+    <div class="trend" id="trendTiles"></div>
+    <p class="trendtxt" id="trendTxt"></p>
+    <span class="note" id="chart3Lbl">Unidades de medicamentos por atención, por mes</span>
+    <div class="chart" id="chart3"></div>
   </section>
 
   <section class="card">
@@ -372,7 +388,7 @@ function render(){
   const tu={};for(const r of M.ul){if(r[0]<f||r[0]>t)continue;tu[r[1]]=(tu[r[1]]||0)+r[2]}
   const us=Object.entries(tu).sort((a,b)=>b[1]-a[1]);
   $('users').innerHTML='<table><thead><tr><th>Usuario</th><th>Atenciones</th><th>%</th></tr></thead><tbody>'+us.map(([u,n])=>'<tr><td class="wrap">'+esc(capName(M.users[u]))+'</td><td class="num">'+fmt(n)+'</td><td class="num">'+fmt(at?n/at*100:0,0)+'%</td></tr>').join('')+'</tbody></table>';
-  renderDow(dl);
+  renderDow(dl);renderTrend(f,t,dl);
   const e=M.exc;$('excl').innerHTML='Quedaron afuera del archivo: <b>'+fmt(e.anulados)+'</b> renglones anulados, <b>'+fmt(e.pendientes)+'</b> pendientes'+(e.sin_paciente?', <b>'+fmt(e.sin_paciente)+'</b> sin paciente':'')+(e.cant_cero?', <b>'+fmt(e.cant_cero)+'</b> con cantidad cero o negativa':'')+'.';
 }
 
@@ -399,9 +415,8 @@ function exportPDF(){
   const s=window.__sum;const [f,t,dl]=curRange();const top=topRows(f,t,5);const dw=dowRows(dl);
   const best=dw.length?dw.reduce((a,b)=>b.pd>a.pd?b:a):null;
   const ms=monthRows(f,t,dl);
-  let trend='';const full=ms.filter(g=>g.dias>=10);if(full.length>=3){const a=full[0],b=full[full.length-1];trend=' Entre '+a.lab.toLowerCase()+' y '+b.lab.toLowerCase()+' las unidades de medicamentos por atención pasaron de '+fmt(a.med/a.at,1)+' a '+fmt(b.med/b.at,1)+'.'}
   const hoy=new Date();const gen=String(hoy.getDate()).padStart(2,'0')+'/'+String(hoy.getMonth()+1).padStart(2,'0')+'/'+hoy.getFullYear();
-  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+trend+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
+  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+(window.__trend?' '+trendText(window.__trend):'')+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
   const prevTitle=document.title;document.title='Informe taquilla '+(M.efector||'')+' '+f+' a '+t;
   setTimeout(()=>{window.print();document.title=prevTitle},50);
 }
@@ -411,7 +426,7 @@ function exportXLS(){
   const wb=XLSX.utils.book_new();
   const add=(name,aoa,w)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);if(w)ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
   add('Resumen',[['Informe de atención en taquilla'],['Farmacia',M.efector||''],['Período',s.per],['Fuente','SIGEHOS · Farmacia > Remitos > Reportes > Listado de movimientos'],[],
-    ['Indicador','Valor'],['Atenciones con entrega efectiva',s.at],['Pacientes distintos',s.uq==null?'':s.uq],['Unidades de medicamentos',r2(s.med)],['Unidades de descartables',r2(s.des)],['Días con atención',s.dias],['Pacientes por día (promedio)',s.dias?r2(s.at/s.dias):''],['Unidades de medicamentos por atención',s.at?r2(s.med/s.at):''],[],
+    ['Indicador','Valor'],['Atenciones con entrega efectiva',s.at],['Pacientes distintos',s.uq==null?'':s.uq],['Unidades de medicamentos',r2(s.med)],['Unidades de descartables',r2(s.des)],['Días con atención',s.dias],['Pacientes por día (promedio)',s.dias?r2(s.at/s.dias):''],['Unidades de medicamentos por atención',s.at?r2(s.med/s.at):''],[],['Evolución de las entregas',trendText(trendCalc(f,t,dl))],[],
     ['Criterio: egresos confirmados con paciente y cantidad mayor a cero. Una atención = un paciente que recibió al menos un producto en el día.']],[40,60]);
   add('Por mes',[['Mes','Atenciones','Pacientes distintos','Días con atención','Pacientes por día','Unid. medicamentos','Unid. descartables','Unid. medicamentos por atención']].concat(monthRows(f,t,dl).map(g=>[g.lab,g.at,g.uq==null?'':g.uq,g.dias,r2(g.at/g.dias),r2(g.med),r2(g.des),g.at?r2(g.med/g.at):''])),[16,12,18,16,16,18,18,26]);
   const DW=['dom','lun','mar','mié','jue','vie','sáb'];
@@ -421,6 +436,44 @@ function exportXLS(){
   add('Dispensadores',[['Usuario','Atenciones']].concat(userRows(f,t).map(r=>[r.u,r.n])),[36,12]);
   XLSX.writeFile(wb,'Informe taquilla '+(M.efector||'farmacia')+' '+f+' a '+t+'.xlsx');
   flash('Excel descargado');
+}
+function trendCalc(f,t,dl){
+  const full=monthRows(f,t,dl).filter(g=>g.dias>=10);const n=full.length;
+  if(n<2)return {ok:false,n};
+  const k=n>=6?3:n>=4?2:1;const A=full.slice(0,k),B=full.slice(n-k);
+  const agg=gs=>{const a=gs.reduce((x,g)=>x+g.at,0),u=gs.reduce((x,g)=>x+g.med,0),d=gs.reduce((x,g)=>x+g.dias,0);return {pd:a/d,ud:u/d,upa:a?u/a:0}};
+  const a=agg(A),b=agg(B);const ch=(x,y)=>x?(y/x-1)*100:0;
+  const lab=gs=>gs.length===1?gs[0].lab.toLowerCase():gs[0].lab.split(' ')[0].toLowerCase()+' a '+gs[gs.length-1].lab.toLowerCase();
+  return {ok:true,k,a,b,la:lab(A),lb:lab(B),cp:ch(a.pd,b.pd),cu:ch(a.ud,b.ud),cx:ch(a.upa,b.upa)};
+}
+function trendText(r){
+  if(!r.ok)return 'Para ver la evolución elegí un período de al menos dos meses (con 10 días de atención o más cada uno).';
+  const pc=v=>(v>0?'+':'')+fmt(v,1)+' %';const S=5;
+  const stP=r.cp>S?'subió':r.cp<-S?'bajó':'se mantuvo';
+  const stU=r.cu>S?'subieron':r.cu<-S?'bajaron':'se mantuvieron';
+  let t='Comparando '+r.la+' con '+r.lb+', por día de atención los pacientes atendidos '+(stP==='se mantuvo'?'se mantuvieron':stP==='subió'?'subieron':'bajaron')+' ('+pc(r.cp)+') y las unidades de medicamentos entregadas '+stU+' ('+pc(r.cu)+'). ';
+  if(Math.abs(r.cu)>S&&Math.sign(r.cu)===Math.sign(r.cx)){
+    const lp=Math.log(1+r.cp/100),lx=Math.log(1+r.cx/100),tot=Math.abs(lp)+Math.abs(lx);
+    if(Math.sign(lp)===Math.sign(lx)&&tot>0){const sh=Math.round(Math.abs(lx)/tot*100);t+='De esa variación, alrededor del '+sh+' % se explica por '+(r.cx<0?'menos':'más')+' unidades por paciente y el '+(100-sh)+' % por '+(r.cp<0?'menos':'más')+' pacientes. ';}
+  }
+  if(r.cx<-S&&r.cp>=-S)t+='Las entregas cayeron más que la demanda: cada paciente recibe menos ('+fmt(r.a.upa,1)+' → '+fmt(r.b.upa,1)+' unidades por atención). Puede reflejar faltantes de stock, restricción de compra o recetas más cortas.';
+  else if(r.cx<-S)t+='Bajaron tanto la cantidad de pacientes como lo que recibe cada uno ('+fmt(r.a.upa,1)+' → '+fmt(r.b.upa,1)+' unidades por atención).';
+  else if(r.cx>S&&r.cp<=S)t+='Cada paciente recibe más que antes ('+fmt(r.a.upa,1)+' → '+fmt(r.b.upa,1)+' unidades por atención), aunque la cantidad de pacientes no creció.';
+  else if(r.cx>S)t+='Crecieron los pacientes y también lo que recibe cada uno ('+fmt(r.a.upa,1)+' → '+fmt(r.b.upa,1)+' unidades por atención).';
+  else if(r.cp<-S)t+='La baja de entregas acompaña a la baja de pacientes: lo que recibe cada uno se mantuvo ('+fmt(r.b.upa,1)+' unidades por atención).';
+  else if(r.cp>S)t+='Las entregas crecieron en línea con la cantidad de pacientes: lo que recibe cada uno se mantuvo ('+fmt(r.b.upa,1)+' unidades por atención).';
+  else t+='No hay cambios relevantes: pacientes y unidades por paciente se mantuvieron estables.';
+  return t;
+}
+function renderTrend(f,t,dl){
+  const r=trendCalc(f,t,dl);window.__trend=r;
+  $('trendTxt').textContent=trendText(r);
+  const tile=(l,a,b,c,dec)=>{const cls=c>5?'up':c<-5?'down':'flat';return '<div class="tt"><span class="l">'+l+'</span><span class="v num">'+fmt(a,dec)+' → '+fmt(b,dec)+'</span><span class="d '+cls+'">'+(c>0?'+':'')+fmt(c,1)+' %</span></div>'};
+  if(r.ok){$('trendPer').textContent=r.la+' vs. '+r.lb+' · promedios por día de atención';
+    $('trendTiles').innerHTML=tile('Pacientes por día',r.a.pd,r.b.pd,r.cp,1)+tile('Unidades de medicamentos por día',r.a.ud,r.b.ud,r.cu,0)+tile('Unidades por atención',r.a.upa,r.b.upa,r.cx,1);}
+  else{$('trendPer').textContent='';$('trendTiles').innerHTML='';}
+  const ms=monthRows(f,t,dl).map(g=>({k:g.ym,lab:g.lab,sh:MES[+g.ym.slice(5,7)-1]+g.ym.slice(2,4),at:g.at,upa:g.at?g.med/g.at:0}));
+  if(ms.length>=2)drawChart(ms,false,'upa','chart3','unidades por atención','b3');else $('chart3').innerHTML='';
 }
 function renderDow(dl){
   const hrs=getHours();const g={};

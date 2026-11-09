@@ -18,6 +18,7 @@ El Excel se procesa en el navegador: no se sube a ningún servidor ni se guarda.
 
 - Pacientes atendidos (atenciones con entrega efectiva) y pacientes distintos.
 - Unidades de medicamentos y de descartables entregadas.
+- Entregas en relación con los pacientes: compara el inicio y el final del período (pacientes por día, unidades por día y unidades por atención) y explica si la variación de las entregas se debe a más o menos pacientes o a lo que recibe cada uno.
 - Detalle por mes y por día, con copia de la tabla para Excel.
 - Atención por día de la semana y pacientes por hora.
 - Medicamentos más entregados y atenciones por dispensador.
