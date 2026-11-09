@@ -102,7 +102,8 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
 .tt .d{font-size:.86rem;font-weight:600}
 .tt .d.up{color:var(--accent)}.tt .d.down{color:var(--warn)}.tt .d.flat{color:var(--muted)}
 .trendtxt{margin:0;max-width:75ch;text-align:justify;hyphens:auto}
-.empty p,.steps li,.foot li,.printhead p{text-align:justify;hyphens:auto}
+p,li,.trendtxt,.printhead p{text-align:justify;hyphens:auto}
+.hd span,.note,.src,.eyebrow,.toast{text-align:left}
 .chart .b3{fill:var(--bar2)}
 .printhead{display:none}
 @media print{
@@ -113,6 +114,7 @@ tfoot td{font-weight:600;border-top:1.5px solid var(--ink);border-bottom:none}
   header{border-bottom:2px solid #111}
   .printhead{display:block;font-size:10pt;color:#333}
   .printhead p{margin:4px 0}
+  p,li{text-align:justify!important;hyphens:auto}
   .card,.kpis,.grid2>section{break-inside:avoid;page-break-inside:avoid;box-shadow:none}
   .grid2{grid-template-columns:1fr}
   .kpis{grid-template-columns:repeat(5,1fr)}
@@ -436,7 +438,15 @@ function exportPDF(){
   const best=dw.length?dw.reduce((a,b)=>b.pd>a.pd?b:a):null;
   const ms=monthRows(f,t,dl);
   const hoy=new Date();const gen=String(hoy.getDate()).padStart(2,'0')+'/'+String(hoy.getMonth()+1).padStart(2,'0')+'/'+hoy.getFullYear();
-  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p><p style="margin-top:8px;font-size:11pt;color:#111">En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':'')+(window.__trend?' '+trendText(window.__trend):'')+(window.__rx?' '+rxText(window.__rx):'')+(window.__disc?' '+discText(window.__disc):'')+(top.length?' Los medicamentos que más pacientes recibieron fueron '+top.map(r=>r.med).join(', ')+'.':'')+'</p>';
+  const P='<p style="margin-top:8px;font-size:11pt;color:#111;text-align:justify;hyphens:auto">';
+  const clean=n=>n.replace(/\s*\([^)]*\)/g,'').replace(/\s+clh\b/i,'').replace(/\s{2,}/g,' ').trim();
+  const parts=[];
+  parts.push('<b>Resumen.</b> En el período se registraron <b>'+fmt(s.at)+' atenciones con entrega efectiva</b>'+(s.uq!=null?' a <b>'+fmt(s.uq)+' pacientes distintos</b>':'')+', con <b>'+fmt(s.med)+' unidades de medicamentos</b> y '+fmt(s.des)+' de descartables entregadas, en '+s.dias+' días de atención ('+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día).'+(best?' El día con más demanda fue el '+best.dia.toLowerCase()+' ('+fmt(best.pd,1)+' pacientes en promedio).':''));
+  if(window.__trend)parts.push('<b>Entregas en relación con los pacientes.</b> '+trendText(window.__trend));
+  if(window.__rx)parts.push('<b>Tipo de receta.</b> '+rxText(window.__rx));
+  if(window.__disc)parts.push('<b>Medicamentos que dejaron de entregarse.</b> '+discText(window.__disc)+(window.__disc.length?' Los principales: '+window.__disc.slice(0,5).map(r=>clean(r.med)+' (última entrega '+dmy(r.last)+')').join(', ')+'.':''));
+  if(top.length)parts.push('<b>Medicamentos más entregados.</b> Los que más pacientes recibieron fueron '+top.map(r=>clean(r.med)).join(', ')+'.');
+  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p>'+parts.map(x=>P+x+'</p>').join('');
   const prevTitle=document.title;document.title='Informe taquilla '+(M.efector||'')+' '+f+' a '+t;
   setTimeout(()=>{window.print();document.title=prevTitle},50);
 }
@@ -472,7 +482,7 @@ function trendCalc(f,t,dl){
 }
 function trendText(r){
   if(!r.ok)return 'Para ver la evolución elegí un período de al menos dos meses (con 10 días de atención o más cada uno).';
-  const pc=v=>(v>0?'+':'')+fmt(v,1)+' %';const S=5;
+  const pc=v=>(v>0?'+':v<0?'−':'')+fmt(Math.abs(v),1)+' %';const S=5;
   const stP=r.cp>S?'subió':r.cp<-S?'bajó':'se mantuvo';
   const stU=r.cu>S?'subieron':r.cu<-S?'bajaron':'se mantuvieron';
   let t='Comparando '+r.la+' con '+r.lb+', por día de atención los pacientes atendidos '+(stP==='se mantuvo'?'se mantuvieron':stP==='subió'?'subieron':'bajaron')+' ('+pc(r.cp)+') y las unidades de medicamentos entregadas '+stU+' ('+pc(r.cu)+'). ';
