@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Atención en taquilla · Farmacias CESAC</title>
+<title>Atención en Ventanilla de Farmacia · CESAC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -139,7 +139,7 @@ p,li,.trendtxt,.printhead p{text-align:justify;hyphens:auto}
   <header>
     <div class="t">
       <span class="eyebrow" id="eyebrow">Farmacia · SIGEHOS</span>
-      <h1>Atención en taquilla</h1>
+      <h1>Atención en Ventanilla de Farmacia</h1>
       <span class="src" id="src"></span>
     </div>
     <div class="actions">
@@ -156,7 +156,7 @@ p,li,.trendtxt,.printhead p{text-align:justify;hyphens:auto}
 
   <section class="card empty" id="empty">
     <h2>Cargá el reporte de remitos de tu farmacia</h2>
-    <p>Esta página cuenta los pacientes atendidos y las unidades entregadas en la taquilla a partir del Excel que exporta SIGEHOS. Arrastrá el archivo acá o tocá <b>Cargar reporte: Listado de movimientos</b>.</p>
+    <p>Esta página cuenta los pacientes atendidos y las unidades entregadas en la ventanilla de farmacia a partir del Excel que exporta SIGEHOS. Arrastrá el archivo acá o tocá <b>Cargar reporte: Listado de movimientos</b>.</p>
     <ol class="steps">
       <li>En SIGEHOS, entrá al menú <b>Farmacia → Remitos</b>. Se abre el <b>Listado de Remitos</b>.</li>
       <li>Elegí las fechas <b>Desde</b> y <b>Hasta</b> del período que querés analizar: un mes, varios meses o el año completo. El resto de los filtros dejalo en <b>Todos</b>.</li>
@@ -446,8 +446,8 @@ function exportPDF(){
   if(window.__rx)parts.push('<b>Tipo de receta.</b> '+rxText(window.__rx));
   if(window.__disc)parts.push('<b>Medicamentos que dejaron de entregarse.</b> '+discText(window.__disc)+(window.__disc.length?' Los principales: '+window.__disc.slice(0,5).map(r=>clean(r.med)+' (última entrega '+dmy(r.last)+')').join(', ')+'.':''));
   if(top.length)parts.push('<b>Medicamentos más entregados.</b> Los que más pacientes recibieron fueron '+top.map(r=>clean(r.med)).join(', ')+'.');
-  $('printHead').innerHTML='<p><b>Informe de atención en taquilla · Farmacia '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p>'+parts.map(x=>P+x+'</p>').join('');
-  const prevTitle=document.title;document.title='Informe taquilla '+(M.efector||'')+' '+f+' a '+t;
+  $('printHead').innerHTML='<p><b>Informe de atención en ventanilla de farmacia · '+esc(M.efector||'')+'</b></p><p>Período: '+s.per+' · Fuente: SIGEHOS, Listado de movimientos · Generado el '+gen+'</p>'+parts.map(x=>P+x+'</p>').join('');
+  const prevTitle=document.title;document.title='Informe ventanilla farmacia '+(M.efector||'')+' '+f+' a '+t;
   setTimeout(()=>{window.print();document.title=prevTitle},50);
 }
 function exportXLS(){
@@ -455,7 +455,7 @@ function exportXLS(){
   const s=window.__sum;const [f,t,dl]=curRange();const r2=x=>Math.round(x*100)/100;
   const wb=XLSX.utils.book_new();
   const add=(name,aoa,w)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);if(w)ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
-  add('Resumen',[['Informe de atención en taquilla'],['Farmacia',M.efector||''],['Período',s.per],['Fuente','SIGEHOS · Farmacia > Remitos > Reportes > Listado de movimientos'],[],
+  add('Resumen',[['Informe de atención en ventanilla de farmacia'],['Farmacia',M.efector||''],['Período',s.per],['Fuente','SIGEHOS · Farmacia > Remitos > Reportes > Listado de movimientos'],[],
     ['Indicador','Valor'],['Atenciones con entrega efectiva',s.at],['Pacientes distintos',s.uq==null?'':s.uq],['Unidades de medicamentos',r2(s.med)],['Unidades de descartables',r2(s.des)],['Días con atención',s.dias],['Pacientes por día (promedio)',s.dias?r2(s.at/s.dias):''],['Unidades de medicamentos por atención',s.at?r2(s.med/s.at):''],[],['Evolución de las entregas',trendText(trendCalc(f,t,dl))],[],
     ['Criterio: egresos confirmados con paciente y cantidad mayor a cero. Una atención = un paciente que recibió al menos un producto en el día.']],[40,60]);
   add('Por mes',[['Mes','Atenciones','Pacientes distintos','Días con atención','Pacientes por día','Unid. medicamentos','Unid. descartables','Unid. medicamentos por atención']].concat(monthRows(f,t,dl).map(g=>[g.lab,g.at,g.uq==null?'':g.uq,g.dias,r2(g.at/g.dias),r2(g.med),r2(g.des),g.at?r2(g.med/g.at):''])),[16,12,18,16,16,18,18,26]);
@@ -468,7 +468,7 @@ function exportXLS(){
   const rx=rxCalc(f,t,dl);
   if(rx)add('Tipo de receta',[['Medicamentos por tipo de receta (columna Ind. interna: SI = electrónica, NO = papel)'],[],['Indicador','Valor'],['Renglones con receta electrónica',rx.si],['Renglones con receta en papel',rx.no],['% renglones con receta electrónica',r2(rx.pct)],['% unidades con receta electrónica',r2(rx.pu)],['Atenciones solo con receta electrónica',rx.as],['Atenciones solo con receta en papel',rx.an],['Atenciones con ambas',rx.ab],[],['Mes','Renglones electrónica','Renglones papel','% electrónica']].concat(rx.months.map(m=>[m.lab,m.si,m.no,r2(m.pct)])).concat([[],['Medicamento (receta en papel)','Renglones']]).concat(rx.topNo.map(x=>[x.med,x.n])),[46,20,16,14]);
   add('Dispensadores',[['Usuario','Atenciones']].concat(userRows(f,t).map(r=>[r.u,r.n])),[36,12]);
-  XLSX.writeFile(wb,'Informe taquilla '+(M.efector||'farmacia')+' '+f+' a '+t+'.xlsx');
+  XLSX.writeFile(wb,'Informe ventanilla farmacia '+(M.efector||'')+' '+f+' a '+t+'.xlsx');
   flash('Excel descargado');
 }
 function trendCalc(f,t,dl){
@@ -591,7 +591,7 @@ function load(file){
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
       M=fromRows(rows,file.name);
       $('eyebrow').textContent='Farmacia · '+(M.efector||'SIGEHOS')+' · SIGEHOS';
-      document.title='Atención en taquilla · '+(M.efector||'Farmacia');
+      document.title='Atención en Ventanilla de Farmacia · '+(M.efector||'');
       $('empty').hidden=true;$('results').hidden=false;['copy','pdf','xls'].forEach(id=>$(id).hidden=false);$('excl').hidden=false;
       setQuick('all');flash('Excel cargado');
     }catch(err){n.textContent=err.message;n.hidden=false}
@@ -613,7 +613,7 @@ $('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)s
 $('pdf').addEventListener('click',exportPDF);
 $('xls').addEventListener('click',exportXLS);
 $('copy').addEventListener('click',()=>{
-  const s=window.__sum;const txt='Farmacia '+((M&&M.efector)||'')+' – Atención en taquilla\nPeríodo: '+s.per+'\nPacientes atendidos (atenciones con entrega): '+fmt(s.at)+(s.uq!=null?'\nPacientes distintos: '+fmt(s.uq):'')+'\nUnidades de medicamentos entregadas: '+fmt(s.med)+'\nUnidades de descartables entregadas: '+fmt(s.des)+'\nDías con atención: '+s.dias+' (promedio '+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día)';
+  const s=window.__sum;const txt='Farmacia '+((M&&M.efector)||'')+' – Atención en Ventanilla de Farmacia\nPeríodo: '+s.per+'\nPacientes atendidos (atenciones con entrega): '+fmt(s.at)+(s.uq!=null?'\nPacientes distintos: '+fmt(s.uq):'')+'\nUnidades de medicamentos entregadas: '+fmt(s.med)+'\nUnidades de descartables entregadas: '+fmt(s.des)+'\nDías con atención: '+s.dias+' (promedio '+(s.dias?fmt(s.at/s.dias,1):'—')+' pacientes por día)';
   const done=()=>flash('Resumen copiado');
   try{navigator.clipboard.writeText(txt).then(done,()=>fallback(txt))}catch(e){fallback(txt)}
 });

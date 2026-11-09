@@ -1,6 +1,6 @@
-# Atención en taquilla · Farmacias CESAC
+# Atención en Ventanilla de Farmacia · CESAC
 
-Página para contar los pacientes atendidos y las unidades entregadas en la taquilla de farmacia, a partir del reporte de remitos de SIGEHOS (módulo Medicación e insumos).
+Página para contar los pacientes atendidos y las unidades entregadas en la ventanilla de farmacia, a partir del reporte de remitos de SIGEHOS (módulo Medicación e insumos).
 
 ## Cómo se usa
 
